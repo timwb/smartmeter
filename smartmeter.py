@@ -464,30 +464,30 @@ def publishdata(m, stats, t):
       mqttclient.publish(topic+'/'+stat, payload=str(stats.stats['gas']['daily'][stat]), retain=True)
 
 
-# Tuples: (key, name, unit, device_class, state_class)
-# unit/device_class/state_class may be None
+# Tuples: (key, name, unit, device_class, state_class, icon)
+# unit/device_class/state_class/icon may be None
 _ELEC_SENSORS = [
-  ('pdw',      'Power delivered',           'W',  'power',   'measurement'),
-  ('prw',      'Power returned',            'W',  'power',   'measurement'),
-  ('edt1',     'Energy delivered tariff 1', 'Wh', 'energy',  'total_increasing'),
-  ('edt2',     'Energy delivered tariff 2', 'Wh', 'energy',  'total_increasing'),
-  ('ert1',     'Energy returned tariff 1',  'Wh', 'energy',  'total_increasing'),
-  ('ert2',     'Energy returned tariff 2',  'Wh', 'energy',  'total_increasing'),
-  ('vl1',      'Voltage L1',                'V',  'voltage', 'measurement'),
-  ('vl2',      'Voltage L2',                'V',  'voltage', 'measurement'),
-  ('vl3',      'Voltage L3',                'V',  'voltage', 'measurement'),
-  ('cl1',      'Current L1',                'A',  'current', 'measurement'),
-  ('cl2',      'Current L2',                'A',  'current', 'measurement'),
-  ('cl3',      'Current L3',                'A',  'current', 'measurement'),
-  ('5mavgpwr', '5-minute average power',    'W',  'power',   'measurement'),
-  ('cn',       'Current through neutral',            'A', 'current', 'measurement'),
-  ('cn2',      'Current through neutral (computed)', 'A', 'current', 'measurement'),
-  ('tariff',   'Active tariff',             None, None,      None),
+  ('pdw',      'Power delivered',                    'W',  'power',   'measurement',      'mdi:home-lightning-bolt-outline'),
+  ('prw',      'Power returned',                     'W',  'power',   'measurement',      'mdi:home-export-outline'),
+  ('edt1',     'Energy delivered tariff 1',          'Wh', 'energy',  'total_increasing', 'mdi:transmission-tower-import'),
+  ('edt2',     'Energy delivered tariff 2',          'Wh', 'energy',  'total_increasing', 'mdi:transmission-tower-import'),
+  ('ert1',     'Energy returned tariff 1',           'Wh', 'energy',  'total_increasing', 'mdi:transmission-tower-export'),
+  ('ert2',     'Energy returned tariff 2',           'Wh', 'energy',  'total_increasing', 'mdi:transmission-tower-export'),
+  ('vl1',      'Voltage L1',                         'V',  'voltage', 'measurement',      'mdi:sine-wave'),
+  ('vl2',      'Voltage L2',                         'V',  'voltage', 'measurement',      'mdi:sine-wave'),
+  ('vl3',      'Voltage L3',                         'V',  'voltage', 'measurement',      'mdi:sine-wave'),
+  ('cl1',      'Current L1',                         'A',  'current', 'measurement',      'mdi:fuse'),
+  ('cl2',      'Current L2',                         'A',  'current', 'measurement',      'mdi:fuse'),
+  ('cl3',      'Current L3',                         'A',  'current', 'measurement',      'mdi:fuse'),
+  ('5mavgpwr', '5-minute average power',             'W',  'power',   'measurement',      'mdi:home-analytics'),
+  ('cn',       'Current through neutral',            'A',  'current', 'measurement',      'mdi:axis-arrow'),
+  ('cn2',      'Current through neutral (computed)', 'A',  'current', 'measurement',      'mdi:axis-arrow'),
+  ('tariff',   'Active tariff',                      None, None,      None,               'mdi:cash-clock'),
 ]
 
 _GAS_SENSORS = [
-  ('gdl',       'Gas total',     'L',   'gas', 'total_increasing'),
-  ('gflowrate', 'Gas flow rate', 'L/s', 'volume_flow_rate', 'measurement'),
+  ('gdl',       'Gas total',     'L',   'gas',               'total_increasing', 'mdi:meter-gas-outline'),
+  ('gflowrate', 'Gas flow rate', 'L/s', 'volume_flow_rate',  'measurement',      'mdi:clipboard-flow-outline'),
 ]
 
 #TODO implement last will and testament to set all MQTT values to unavailable, and maybe also publish a retained "status" topic with "online"/"offline" or something like that.
@@ -505,7 +505,7 @@ def publish_discovery(eqid, geqid):
     'manufacturer': 'DSMR',
     'model': dsmr_model,
   }
-  for key, name, unit, device_class, state_class in _ELEC_SENSORS:
+  for key, name, unit, device_class, state_class, icon in _ELEC_SENSORS:
     payload = {
       'name': name,
       'unique_id': f'{eqid}_{key}',
@@ -515,6 +515,7 @@ def publish_discovery(eqid, geqid):
     if unit:         payload['unit_of_measurement'] = unit
     if device_class: payload['device_class']        = device_class
     if state_class:  payload['state_class']         = state_class
+    if icon:         payload['icon']                = icon
     mqttclient.publish(f'{prefix}/sensor/{eqid}_{key}/config', payload=json.dumps(payload), retain=True)
 
   gas_device = {
@@ -523,7 +524,7 @@ def publish_discovery(eqid, geqid):
     'manufacturer': 'DSMR',
     'model': dsmr_model,
   }
-  for key, name, unit, device_class, state_class in _GAS_SENSORS:
+  for key, name, unit, device_class, state_class, icon in _GAS_SENSORS:
     payload = {
       'name': name,
       'unique_id': f'{geqid}_{key}',
@@ -533,6 +534,7 @@ def publish_discovery(eqid, geqid):
     if unit:         payload['unit_of_measurement'] = unit
     if device_class: payload['device_class']        = device_class
     if state_class:  payload['state_class']         = state_class
+    if icon:         payload['icon']                = icon
     mqttclient.publish(f'{prefix}/sensor/{geqid}_{key}/config', payload=json.dumps(payload), retain=True)
 
   discovery_published = True
