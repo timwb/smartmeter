@@ -1,0 +1,16 @@
+---
+serialport: '/dev/ttyUSB0'
+# 5, 4, or 2.2
+dsmrversion: 5
+influxdb:
+  host:     "localhost" # 
+  port:     8086 # default port
+  username: "yourusername"
+  password: "yourpassword"
+  database: "smartmeter"
+mqtt:
+  host:     "localhost"
+  username: "yourusername"
+  password: "yourpassword"
+  topic:    "smartmeter"
+ha_discovery_prefix: "homeassistant"
