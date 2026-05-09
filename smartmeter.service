@@ -7,10 +7,39 @@ After=mosquitto.service
 User=smartmeter
 ExecStart=/usr/local/share/homeautomation/smartmeter.py
 ExecReload=kill -HUP $MAINPID
-#Restart=no
 # Current implementation crashes when InfluxDB is not running
 Restart=on-failure
 RestartSec=5
+
+# Hardening
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/local /dev/shm
+
+# USB serial adapters: ttyUSB* (major 188), ttyACM* (major 166), ttyS* (major 4)
+DevicePolicy=closed
+DeviceAllow=char-ttyUSB rw
+DeviceAllow=char-ttyACM rw
+DeviceAllow=char-ttyS rw
+
+CapabilityBoundingSet=
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectClock=yes
+ProtectControlGroups=yes
+
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
 
 [Install]
 WantedBy=multi-user.target
