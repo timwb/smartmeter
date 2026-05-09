@@ -107,9 +107,11 @@ State is written to disk so daily totals survive restarts.
 - Gas delivery and flow rate
 - Raw telegram
 
+For DSMR5 (1 telegram/s), a throttled copy is also published every 10 telegrams to `smartmeter/<meter-id>/ha/<key>`, with measurement values (power, voltage, current) averaged over the interval and counter values (energy totals, tariff) taken from the last telegram. Home Assistant reads from these throttled topics to avoid flooding its database.
+
 **InfluxDB** — measurements in the configured database, including all of the above plus derived statistics.
 
-**Home Assistant** — MQTT discovery messages published to `homeassistant/sensor/...` on startup, so sensors appear automatically in HA.
+**Home Assistant** — MQTT discovery messages published to `homeassistant/sensor/...` on startup, so sensors appear automatically in HA. For DSMR5, the discovery config points to the throttled `…/ha/` topics automatically.
 
 ## Voltage monitor
 

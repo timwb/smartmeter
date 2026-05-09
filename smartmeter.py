@@ -225,6 +225,54 @@ class cl_stats:
     if 'gts' in m: self._prevgts = m['gts']
 
 
+# Keys averaged over the HA publish interval; the rest take the last value.
+_HA_AVG_M_KEYS    = {'pdw', 'prw', 'vl1', 'vl2', 'vl3', 'cl1', 'cl2', 'cl3'}
+_HA_AVG_STAT_KEYS = {'5mavgpwr', 'cn', 'cn2'}
+_HA_LAST_M_KEYS   = {'edt1', 'edt2', 'ert1', 'ert2', 'tariff'}
+
+
+class cl_ha_publisher:
+  """Throttle MQTT publishes to Home Assistant for DSMR5 (1 telegram/s).
+
+  Accumulates values over `interval` telegrams, then publishes averaged
+  measurements and the last-seen counter values to <base>/<eqid>/ha/<key>.
+  """
+  def __init__(self, interval=10):
+    self._interval = interval
+    self._reset()
+
+  def _reset(self):
+    self._count = 0
+    self._sums  = {k: 0.0 for k in _HA_AVG_M_KEYS | _HA_AVG_STAT_KEYS}
+    self._last  = {}
+
+  def accumulate(self, m, stats):
+    for k in _HA_AVG_M_KEYS:
+      if k in m:
+        self._sums[k] += m[k]
+    for k in _HA_AVG_STAT_KEYS:
+      val = stats.stats['electricity']['realtime'].get(k)
+      if val is not None:
+        self._sums[k] += val
+    for k in _HA_LAST_M_KEYS:
+      if k in m:
+        self._last[k] = m[k]
+    self._count += 1
+
+    if self._count >= self._interval:
+      self._publish(m['eqid'])
+      self._reset()
+
+  def _publish(self, eqid):
+    topic = config['mqtt']['topic'] + '/' + eqid + '/ha'
+    n = self._count
+    for k in _HA_AVG_M_KEYS | _HA_AVG_STAT_KEYS:
+      mqttclient.publish(topic + '/' + k, payload=str(round(self._sums[k] / n, 3)))
+    for k, v in self._last.items():
+      mqttclient.publish(topic + '/' + k, payload=str(v))
+    logger.debug(f"Published HA-throttled data to {topic}")
+
+
 #TODO Implement actually reloading the config.
 def reloadconfig(signum, frame):
     global discovery_published
@@ -448,6 +496,8 @@ def publish_discovery(eqid, geqid):
   prefix = config.get('ha_discovery_prefix', 'homeassistant')
   base_topic = config['mqtt']['topic']
   dsmr_model = str(config.get('dsmrversion', 'unknown'))
+  # DSMR5 sends every second; HA reads from the throttled /ha/ subtopic.
+  elec_state_base = f'{base_topic}/{eqid}/ha' if dsmr_model == '5' else f'{base_topic}/{eqid}'
 
   elec_device = {
     'identifiers': [eqid],
@@ -459,7 +509,7 @@ def publish_discovery(eqid, geqid):
     payload = {
       'name': name,
       'unique_id': f'{eqid}_{key}',
-      'state_topic': f'{base_topic}/{eqid}/{key}',
+      'state_topic': f'{elec_state_base}/{key}',
       'device': elec_device,
     }
     if unit:         payload['unit_of_measurement'] = unit
@@ -535,6 +585,8 @@ def process_telegrams():
   data.writedata(m, stats, t)
   writetoinflux(m, stats)
   publishdata(m, stats, t)
+  if ha_publisher is not None and 'eqid' in m:
+    ha_publisher.accumulate(m, stats)
   logger.debug("Written and published data")
 
 
@@ -606,8 +658,9 @@ if __name__ == '__main__':
     logger.critical(e)
     exit(1)
 
-  data    = cl_data()
-  stats   = cl_stats()
+  data         = cl_data()
+  stats        = cl_stats()
+  ha_publisher = cl_ha_publisher() if str(config.get('dsmrversion', '')) == '5' else None
 
   #TODO put influx and mqtt in a class as well.
   influxclient = InfluxDBClient(
